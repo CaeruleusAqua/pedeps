@@ -25,61 +25,80 @@ THE SOFTWARE.
 #include <string.h>
 #include <inttypes.h>
 
-int listimports (const char* modulename, const char* functionname, void* callbackdata)
-{
-  printf("%s: %s\n", modulename, functionname);
-  return 0;
+int listimports(const char *modulename, const char *functionname, void *callbackdata) {
+    printf("%s: %s\n", modulename, functionname);
+    return 0;
 }
 
-int listexports (const char* modulename, const char* functionname, uint16_t ordinal, int isdata, char* functionforwardername, void* callbackdata)
-{
-  printf("%s: %s @ %" PRIu16 "%s%s%s\n", modulename, functionname, ordinal, (isdata ? " DATA": ""), (functionforwardername ? "; forwarder: " : ""), (functionforwardername ? functionforwardername : ""));
-  return 0;
+int
+listexports(const char *modulename, const char *functionname, uint16_t ordinal, int isdata, char *functionforwardername,
+            void *callbackdata) {
+    printf("%s: %s @ %" PRIu16 "%s%s%s\n", modulename, functionname, ordinal, (isdata ? " DATA" : ""),
+           (functionforwardername ? "; forwarder: " : ""), (functionforwardername ? functionforwardername : ""));
+    return 0;
 }
 
-int main (int argc, char* argv[])
-{
-  int i;
-  int status;
-  pefile_handle pehandle;
+int main(int argc, char *argv[]) {
+    int i;
+    int status;
+    pefile_handle pehandle;
 
-  //show version number
-  printf("pedeps library version: %s\n", pedeps_get_version_string());
+    //show version number
+    printf("pedeps library version: %s\n", pedeps_get_version_string());
 
-  //determine filename
-  if (argc <= 1) {
-    fprintf(stderr, "Error: no filename given\n");
-    return 1;
-  }
-
-  //create PE object
-  if ((pehandle = pefile_create()) == NULL) {
-    fprintf(stderr, "Error creating object\n");
-    return 2;
-  }
-
-  for (i = 1; i < argc; i++) {
-    printf("[%s]\n", argv[i]);
-    //open PE file
-    if ((status = pefile_open_file(pehandle, argv[i])) != 0) {
-      fprintf(stderr, "Error opening PE file %s: %s\n", argv[i], pefile_status_message(status));
-      return 3;
+    //determine filename
+    if (argc <= 1) {
+        fprintf(stderr, "Error: no filename given\n");
+        return 1;
     }
-    //display information
-    printf("architecture: %s\n", pe_get_arch_name(pefile_get_machine(pehandle)));
-    printf("machine name: %s\n", pe_get_machine_name(pefile_get_machine(pehandle)));
-    printf("subsystem:    %s\n", pe_get_subsystem_name(pefile_get_subsystem(pehandle)));
-    printf("minimum Windows version: %" PRIu16 ".%" PRIu16 "\n", pefile_get_min_os_major(pehandle), pefile_get_min_os_minor(pehandle));
-    //analyze file
-    printf("IMPORTS\n");
-    status = pefile_list_imports(pehandle, listimports, NULL);
-    printf("EXPORTS\n");
-    status = pefile_list_exports(pehandle, listexports, NULL);
-    //close PE file
-    pefile_close(pehandle);
-  }
-  //destroy PE object
-  pefile_destroy(pehandle);
-  return status;
+
+    //create PE object
+    if ((pehandle = pefile_create()) == NULL) {
+        fprintf(stderr, "Error creating object\n");
+        return 2;
+    }
+
+
+    for (i = 1; i < argc; i++) {
+        int param_len = strlen(argv[i]);
+        char *buf;
+        if ((buf = malloc(param_len+1)) == NULL) {
+            return -1;
+        }
+        for(int j=0; j < param_len; j++){
+            if(argv[i][j] == '\\'){
+                buf[j] = '/';
+            }
+            else{
+                buf[j] = argv[i][j];
+            }
+        }
+        buf[param_len] = 0;
+
+		//const char* buff = "C:/Users/scholle/Projects/common_cmake/build/x64-Release/bin/systemViewer.exe";
+
+        printf("[%s]\n", buf);
+        //open PE file
+        if ((status = pefile_open_file(pehandle, buf)) != 0) {
+            fprintf(stderr, "Error opening PE file %s: %s\n", buf, pefile_status_message(status));
+            return 3;
+        }
+        //display information
+        printf("architecture: %s\n", pe_get_arch_name(pefile_get_machine(pehandle)));
+        printf("machine name: %s\n", pe_get_machine_name(pefile_get_machine(pehandle)));
+        printf("subsystem:    %s\n", pe_get_subsystem_name(pefile_get_subsystem(pehandle)));
+        printf("minimum Windows version: %" PRIu16 ".%" PRIu16 "\n", pefile_get_min_os_major(pehandle),
+               pefile_get_min_os_minor(pehandle));
+        //analyze file
+        printf("IMPORTS\n");
+        status = pefile_list_imports(pehandle, listimports, NULL);
+        //printf("EXPORTS\n");
+       // status = pefile_list_exports(pehandle, listexports, NULL);
+        //close PE file
+        pefile_close(pehandle);
+    }
+    //destroy PE object
+    pefile_destroy(pehandle);
+    return status;
 }
 
